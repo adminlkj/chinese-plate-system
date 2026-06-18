@@ -41,7 +41,6 @@ model Branch {
   stockTransfersTo  StockTransfer[] @relation("StockTransferTo")
   shifts            Shift[]
   posInvoices       POSInvoice[]
-  auditLogs         AuditLog[]
 
   employees         Employee[]
   payrollRuns       PayrollRun[]
@@ -50,6 +49,8 @@ model Branch {
   periodLocks       PayrollPeriodLock[]
   payrollSetting    PayrollSetting?
   vatDeclarations   VatDeclaration[]
+
+  auditLogs         AuditLog[]
 }
 
 // ===================== ACCOUNT =====================
@@ -65,19 +66,11 @@ model Account {
   openingBalance  Decimal  @default("0")
   currentBalance  Decimal  @default("0")
   isActive        Boolean  @default(true)
-  isSystem        Boolean  @default(false)
-  isComputed      Boolean  @default(false)
-  computedSource  String?
-  description     String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
 
   parent   Account? @relation("AccountHierarchy", fields: [parentId], references: [id])
   children Account[] @relation("AccountHierarchy")
   branch   Branch?   @relation(fields: [branchId], references: [id])
   journalLines JournalLine[]
-
-  @@index([branchId])
 }
 
 // ===================== TRANSACTION =====================
@@ -103,9 +96,6 @@ model Transaction {
 
   journalEntries JournalEntry[]
   posInvoices    POSInvoice[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 
 // ===================== JOURNAL =====================
@@ -123,9 +113,6 @@ model JournalEntry {
   branch      Branch?      @relation(fields: [branchId], references: [id])
   transaction Transaction? @relation(fields: [transactionId], references: [id])
   lines       JournalLine[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 
 model JournalLine {
@@ -137,8 +124,6 @@ model JournalLine {
 
   journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id])
   account      Account      @relation(fields: [accountId], references: [id])
-
-  createdAt DateTime @default(now())
 }
 
 // ===================== USER =====================
@@ -150,9 +135,6 @@ model User {
   role     String @default("VIEWER")
 
   shifts Shift[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 
 model UserPermission {
@@ -176,9 +158,6 @@ model RestaurantTable {
 
   branch Branch? @relation(fields: [branchId], references: [id])
   invoices POSInvoice[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 
 // ===================== PRODUCT =====================
@@ -203,9 +182,6 @@ model Product {
 
   category ProductCategory @relation(fields: [categoryId], references: [id])
   branch   Branch? @relation(fields: [branchId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 
 // ===================== CATEGORY =====================
@@ -218,9 +194,6 @@ model ProductCategory {
 
   branch Branch? @relation(fields: [branchId], references: [id])
   products Product[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 
 // ===================== POS =====================
@@ -234,9 +207,6 @@ model POSInvoice {
 
   branch Branch? @relation(fields: [branchId], references: [id])
   items  POSInvoiceItem[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 
 model POSInvoiceItem {
@@ -260,8 +230,6 @@ model StockTransaction {
 
   product Product @relation(fields: [productId], references: [id])
   branch  Branch? @relation(fields: [branchId], references: [id])
-
-  createdAt DateTime @default(now())
 }
 
 model StockTake {
@@ -290,8 +258,6 @@ model Shift {
 
   user User? @relation(fields: [userId], references: [id])
   branch Branch? @relation(fields: [branchId], references: [id])
-
-  createdAt DateTime @default(now())
 }
 
 // ===================== CUSTOMER / SUPPLIER =====================
