@@ -1,25 +1,7 @@
-generator client {
-  provider = "prisma-client-js"
-}
+// ═══════════════════════════════════════════════
+// PRISMA CONFIG
+// ═══════════════════════════════════════════════
 
-datasource db {
-  // ─────────────────────────────────────────────────────────────────────────
-  // DUAL-ENVIRONMENT DATASOURCE
-  //
-  // • Sandbox / local dev → SQLite (file:./db/custom.db)
-  //   The schema uses bare `Decimal` / `String` / `Boolean` / `DateTime`
-  //   types that Prisma maps to SQLite's flexible NUMERIC / TEXT columns.
-  //
-  // • Render production → PostgreSQL
-  //   `scripts/switch-to-postgres.js` runs as the FIRST step of
-  //   `render.yaml`'s buildCommand and rewrites this block to
-  //   `provider = "postgresql"` in-place before `prisma generate` runs.
-  //   The same script is a safe no-op if the provider is already postgresql.
-  //
-  // Deployment uses `prisma db push` (NOT migrations) — see render.yaml
-  // startCommand. The DATABASE_URL is injected by Render from the
-  // `chinese-plate-db` PostgreSQL resource.
-  // ─────────────────────────────────────────────────────────────────────
 generator client {
   provider = "prisma-client-js"
 }
@@ -29,1065 +11,130 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Branch Master Table
-// Each branch holds its OWN independent settings (logo, contact, financial, receipt)
-// so that POS, printing, and accounting can be fully customized per branch.
+// ═══════════════════════════════════════════════
+// BRANCH
+// ═══════════════════════════════════════════════
+
 model Branch {
   id        String   @id @default(cuid())
   code      String   @unique
   name      String
   nameEn    String?
   address   String?
-  addressEn String?
   phone     String?
   email     String?
   manager   String?
   vatNumber String?
-  taxRate   Decimal?
-  maxDiscountPercentage Decimal?
-  logo      String?
-  receiptHeader String?
-  receiptFooter String?
+  taxRate   Decimal? @default(0)
+
   isActive  Boolean  @default(true)
-  sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   accounts          Account[]
   transactions      Transaction[]
   journalEntries    JournalEntry[]
-  tables            RestaurantTable[]
-  productCategories ProductCategory[]
   products          Product[]
-  stockTransactions StockTransaction[]
-  stockTakes        StockTake[]
-  stockTransfers    StockTransfer[] @relation("StockTransferFrom")
-  stockTransfersTo  StockTransfer[] @relation("StockTransferTo")
-  shifts            Shift[]
-  posInvoices       POSInvoice[]
-  auditLogs         AuditLog[]
-
-  employees         Employee[]
-  payrollRuns       PayrollRun[]
-  salaryAdvances    SalaryAdvance[]
-  allowanceTypes    AllowanceType[]
-  periodLocks       PayrollPeriodLock[]
-  payrollSetting    PayrollSetting?
-  vatDeclarations   VatDeclaration[]
+  customers         Customer[]
+  suppliers         Supplier[]
 }
 
-// Fiscal Periods
-model FiscalPeriod {
-  id        String   @id @default(cuid())
-  name      String
-  startDate DateTime
-  endDate   DateTime
-  status    String   @default("OPEN")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+// ═══════════════════════════════════════════════
+// ACCOUNTING
+// ═══════════════════════════════════════════════
 
-  journalEntries JournalEntry[]
-}
-
-// Chart of Accounts
 model Account {
-  id              String    @id @default(cuid())
-  code            String    @unique
-  name            String
-  nameEn          String?
-  type            String    // ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE
-  parentId        String?
-  branchId        String
-  level           Int       @default(1)
-  openingBalance  Decimal   @default("0")
-  currentBalance  Decimal   @default("0")
-  isActive        Boolean   @default(true)
-  isSystem        Boolean   @default(false)
-  isComputed      Boolean   @default(false)
-  computedSource  String?
-  description     String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id       String @id @default(cuid())
+  code     String @unique
+  name     String
+  type     String
+  branchId String
 
-  parent      Account?       @relation("AccountHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
-  children    Account[]      @relation("AccountHierarchy")
-  branch      Branch?        @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  journalLines JournalLine[]
+  branch Branch @relation(fields: [branchId], references: [id])
 
-  @@index([parentId])
-  @@index([branchId])
-  @@index([type])
-  @@index([type, isActive])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-// Customers
+// ═══════════════════════════════════════════════
+// CUSTOMER / SUPPLIER
+// ═══════════════════════════════════════════════
+
 model Customer {
-  id                  String   @id @default(cuid())
-  name                String
-  nameEn              String?
-  type                String   @default("PLATFORM")
-  discountPercentage  Decimal  @default("0")
-  phone               String?  @unique
-  email               String?
-  balance             Decimal  @default("0")
-  isActive            Boolean  @default(true)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id        String @id @default(cuid())
+  name      String
+  phone     String?
+  balance   Decimal @default(0)
+  branchId  String
 
-  transactions  Transaction[]
-  journalEntries JournalEntry[]
-  posInvoices   POSInvoice[]
+  branch Branch @relation(fields: [branchId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-// Suppliers
 model Supplier {
-  id          String   @id @default(cuid())
-  name        String
-  nameEn      String?
-  phone       String?  @unique
-  email       String?
-  balance     Decimal  @default("0")
-  isActive    Boolean  @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        String @id @default(cuid())
+  name      String
+  phone     String?
+  balance   Decimal @default(0)
+  branchId  String
 
-  transactions  Transaction[]
-  journalEntries JournalEntry[]
+  branch Branch @relation(fields: [branchId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-// Transaction Header
+// ═══════════════════════════════════════════════
+// TRANSACTIONS
+// ═══════════════════════════════════════════════
+
 model Transaction {
-  id               String   @id @default(cuid())
-  transactionNumber String  @unique
-  type             String
-  subType          String?
-  date             DateTime
-  description      String
-  referenceCode    String?
-  branchId         String
-  customerId       String?
-  supplierId       String?
-  totalAmount      Decimal  @default("0")
-  taxAmount        Decimal  @default("0")
-  discountAmount   Decimal  @default("0")
-  netAmount        Decimal  @default("0")
-  status           String   @default("POSTED")
-  paymentMethod    String?
-  counterParty     String?
-  invoiceNumber    String?
-  parentTransactionId String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id          String @id @default(cuid())
+  number      String @unique
+  type        String
+  date        DateTime
+  totalAmount Decimal @default(0)
+  branchId    String
 
-  customer         Customer?    @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  supplier         Supplier?    @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  branch           Branch?       @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  parentTransaction Transaction? @relation("TransactionSettlement", fields: [parentTransactionId], references: [id])
-  settlements      Transaction[] @relation("TransactionSettlement")
-  journalEntries   JournalEntry[]
-  posInvoices     POSInvoice[]
+  branch Branch @relation(fields: [branchId], references: [id])
 
-  @@index([date])
-  @@index([branchId])
-  @@index([customerId])
-  @@index([supplierId])
-  @@index([status])
-  @@index([type])
-  @@index([subType])
-  @@index([date, branchId])
-  @@index([type, status])
-  @@index([invoiceNumber])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-// Journal Entry Header
+// ═══════════════════════════════════════════════
+// JOURNAL
+// ═══════════════════════════════════════════════
+
 model JournalEntry {
-  id            String   @id @default(cuid())
-  entryNumber   String   @unique
-  date          DateTime
-  description   String
-  type          String
-  status        String   @default("DRAFT")
-  reference     String?
-  branchId      String
-  paymentMethod String?
-  counterParty  String?
-  invoiceNumber String?
-  amount        Decimal  @default("0")
-  taxAmount     Decimal  @default("0")
-  discountAmount Decimal @default("0")
-  customerId    String?
-  supplierId    String?
-  periodId      String?
-  groupId       String?
-  groupRole     String?
-  totalAmount   Decimal  @default("0")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  transactionId  String?
-  period    FiscalPeriod? @relation(fields: [periodId], references: [id], onDelete: Restrict)
-  customer  Customer?    @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  supplier  Supplier?    @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  branch    Branch?      @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  transaction Transaction?  @relation(fields: [transactionId], references: [id], onDelete: Restrict)
-  lines     JournalLine[]
-
-  @@index([status])
-  @@index([date])
-  @@index([branchId])
-  @@index([customerId])
-  @@index([supplierId])
-  @@index([transactionId])
-  @@index([groupId])
-  @@index([invoiceNumber])
-  @@index([type, status])
-  @@index([date, branchId])
-}
-
-// Journal Entry Line
-model JournalLine {
-  id             String   @id @default(cuid())
-  journalEntryId String
-  accountId      String
-  debit          Decimal  @default("0")
-  credit         Decimal  @default("0")
-  description    String?
-  createdAt      DateTime @default(now())
-
-  journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
-  account      Account     @relation(fields: [accountId], references: [id], onDelete: Restrict)
-
-  @@index([accountId])
-  @@index([journalEntryId])
-  @@index([accountId, journalEntryId])
-}
-
-// Users & Permissions
-model User {
-  id              String   @id @default(cuid())
-  email           String   @unique
-  name            String
-  nameEn          String?
-  password        String
-  role            String   @default("VIEWER")
-  allowedBranches String?
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  permissions UserPermission[]
-  shifts      Shift[]
-
-  @@index([email])
-}
-
-model UserPermission {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  screen      String
-  accessLevel String   @default("READ")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@unique([userId, screen])
-  @@index([userId])
-}
-
-// System Settings
-model Setting {
-  id    String @id @default(cuid())
-  key   String @unique
-  value String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-// Restaurant Tables
-model RestaurantTable {
-  id        String   @id @default(cuid())
-  name      String
+  id        String @id @default(cuid())
+  number    String @unique
+  date      DateTime
+  description String
   branchId  String
-  isActive  Boolean  @default(true)
-  sortOrder Int      @default(0)
+
+  branch Branch @relation(fields: [branchId], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  branch   Branch?       @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  invoices POSInvoice[]
-
-  @@index([branchId])
 }
 
-// Product Categories
-model ProductCategory {
-  id        String   @id @default(cuid())
-  name      String
-  nameEn    String?
-  branchId  String
-  icon      String?
-  color     String?
-  isActive  Boolean  @default(true)
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+// ═══════════════════════════════════════════════
+// PRODUCTS
+// ═══════════════════════════════════════════════
 
-  branch   Branch?   @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  products Product[]
-
-  @@unique([name, branchId])
-  @@index([branchId])
-}
-
-// Products
 model Product {
-  id              String   @id @default(cuid())
-  name            String
-  nameEn          String?
-  sku             String?  @unique
-  categoryId      String
-  branchId        String
-  costPrice       Decimal  @default("0")
-  price           Decimal  @default("0")
-  unit            String   @default("قطعة")
-  currentStock    Decimal  @default("0")
-  minStock        Decimal  @default("0")
-  maxStock        Decimal  @default("0")
-  reorderQuantity Decimal  @default("0")
-  isActive        Boolean  @default(true)
-  sortOrder       Int      @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  category           ProductCategory       @relation(fields: [categoryId], references: [id])
-  branch             Branch?                @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  stockTransactions  StockTransaction[]
-  invoiceItems       POSInvoiceItem[]
-  invoiceItemLinks   POSInvoiceItemProduct[]
-  stockTakeItems     StockTakeItem[]
-  transferItems      StockTransferItem[]
-
-  @@index([categoryId])
-  @@index([branchId])
-  @@index([isActive, branchId])
-}
-
-// Stock Transactions
-model StockTransaction {
-  id            String   @id @default(cuid())
-  productId     String
-  type          String
-  quantity      Decimal  @default("0")
-  costPrice     Decimal  @default("0")
-  totalCost     Decimal  @default("0")
-  reference     String?
-  referenceType String?
-  referenceId   String?
-  notes         String?
-  branchId      String
-  createdAt     DateTime @default(now())
-
-  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
-  branch  Branch? @relation(fields: [branchId], references: [id], onDelete: Restrict)
-
-  @@index([productId])
-  @@index([branchId])
-  @@index([referenceId])
-  @@index([type])
-  @@index([branchId, type, createdAt])
-}
-
-// Stock Take
-model StockTake {
-  id            String    @id @default(cuid())
-  number        String    @unique
-  date          DateTime
-  branchId      String
-  status        String    @default("DRAFT")
-  notes         String?
-  userId        String?
-  postedAt      DateTime?
-  postedBy      String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  branch Branch?      @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  items  StockTakeItem[]
-
-  @@index([branchId])
-  @@index([status])
-  @@index([date])
-}
-
-model StockTakeItem {
-  id          String   @id @default(cuid())
-  stockTakeId String
-  productId   String
-  systemQty   Decimal  @default("0")
-  countedQty  Decimal?
-  difference  Decimal  @default("0")
-  costPrice   Decimal  @default("0")
-  totalValue  Decimal  @default("0")
-  notes       String?
-
-  stockTake StockTake @relation(fields: [stockTakeId], references: [id], onDelete: Cascade)
-  product   Product   @relation(fields: [productId], references: [id], onDelete: Restrict)
-
-  @@unique([stockTakeId, productId])
-  @@index([stockTakeId])
-  @@index([productId])
-}
-
-// Stock Transfer
-model StockTransfer {
-  id            String   @id @default(cuid())
-  number        String   @unique
-  date          DateTime
-  fromBranchId  String
-  toBranchId    String
-  status        String   @default("DRAFT")
-  notes         String?
-  userId        String?
-  receivedBy    String?
-  receivedAt    DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  fromBranch Branch?           @relation("StockTransferFrom", fields: [fromBranchId], references: [id], onDelete: Restrict)
-  toBranch   Branch?           @relation("StockTransferTo", fields: [toBranchId], references: [id], onDelete: Restrict)
-  items      StockTransferItem[]
-
-  @@index([fromBranchId])
-  @@index([toBranchId])
-  @@index([status])
-  @@index([date])
-}
-
-model StockTransferItem {
-  id          String   @id @default(cuid())
-  transferId  String
-  productId   String
-  quantity    Decimal  @default("0")
-  costPrice   Decimal  @default("0")
-  totalCost   Decimal  @default("0")
-  notes       String?
-
-  stockTransfer StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
-  product       Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
-
-  @@index([transferId])
-  @@index([productId])
-}
-
-// Shift Management
-model Shift {
-  id             String    @id @default(cuid())
-  number         String    @unique
-  userId         String?
-  branchId       String
-  status         String    @default("OPEN")
-  openedAt       DateTime  @default(now())
-  closedAt       DateTime?
-  openingCash    Decimal   @default("0")
-  closingCash    Decimal? 
-  expectedCash   Decimal? 
-  cashDifference Decimal? 
-  totalSales     Decimal   @default("0")
-  totalReturns   Decimal   @default("0")
-  totalDiscounts Decimal   @default("0")
-  totalCashSales Decimal   @default("0")
-  totalCardSales Decimal   @default("0")
-  totalOtherSales Decimal  @default("0")
-  invoiceCount   Int       @default(0)
-  returnCount    Int       @default(0)
-  notes          String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
-  branch Branch? @relation(fields: [branchId], references: [id], onDelete: Restrict)
-
-  @@index([userId])
-  @@index([branchId])
-  @@index([status])
-  @@index([openedAt])
-}
-
-// POS Invoice Item Product Link
-model POSInvoiceItemProduct {
-  id            String  @id @default(cuid())
-  invoiceItemId String
-  productId     String
-  quantity      Decimal @default("1")
-
-  invoiceItem POSInvoiceItem @relation(fields: [invoiceItemId], references: [id], onDelete: Cascade)
-  product     Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  @@index([invoiceItemId])
-}
-
-// POS Invoice
-model POSInvoice {
-  id             String   @id @default(cuid())
-  invoiceNumber  String   @unique
-  tableId        String?
-  branchId       String
-  status         String   @default("DRAFT")
-  customerId     String?
-  customerName   String?
-  subtotal          Decimal  @default("0")
-  discountPercentage Decimal @default("0")
-  discountAmount    Decimal  @default("0")
-  taxAmount         Decimal  @default("0")
-  totalAmount       Decimal  @default("0")
-  paidAmount     Decimal  @default("0")
-  changeAmount   Decimal  @default("0")
-  paymentMethod  String?
-  transactionId  String?
-  isReturn       Boolean  @default(false)
-  originalInvoiceId String?
-  receiptHtml    String?
-  notes          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  table      RestaurantTable?  @relation(fields: [tableId], references: [id])
-  customer   Customer?         @relation(fields: [customerId], references: [id])
-  branch     Branch?           @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  transaction Transaction?     @relation(fields: [transactionId], references: [id])
-  originalInvoice POSInvoice?  @relation("InvoiceReturn", fields: [originalInvoiceId], references: [id], onDelete: Restrict)
-  returnInvoices   POSInvoice[] @relation("InvoiceReturn")
-  items      POSInvoiceItem[]
-  payments   POSInvoicePayment[]
-
-  @@index([branchId])
-  @@index([status])
-  @@index([tableId])
-  @@index([createdAt])
-  @@index([status, branchId, createdAt])
-  @@index([customerId])
-  @@index([isReturn, createdAt])
-}
-
-// POS Invoice Line Item
-model POSInvoiceItem {
-  id          String   @id @default(cuid())
-  invoiceId   String
-  productId   String?
-  name        String
-  nameEn      String?
-  quantity    Decimal  @default("1")
-  unitPrice   Decimal  @default("0")
-  totalPrice  Decimal  @default("0")
-  notes       String?
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-
-  invoice POSInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
-  product Product?  @relation(fields: [productId], references: [id])
-  productLinks POSInvoiceItemProduct[]
-
-  @@index([invoiceId])
-  @@index([productId])
-}
-
-// Audit Log
-model AuditLog {
-  id          String   @id @default(cuid())
-  action      String
-  entity      String
-  entityId    String?
-  entityNumber String?
-  description String
-  details     String?
-  userId      String?
-  userName    String?
-  userRole    String?
-  branchId    String?
-  ipAddress   String?
-  userAgent   String?
-  severity    String   @default("INFO")
-  category    String   @default("GENERAL")
-  createdAt   DateTime @default(now())
-
-  branch Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
-
-  @@index([entity])
-  @@index([entityId])
-  @@index([userId])
-  @@index([action])
-  @@index([category])
-  @@index([severity])
-  @@index([branchId])
-  @@index([createdAt])
-}
-
-// POS Invoice Payment
-model POSInvoicePayment {
-  id            String   @id @default(cuid())
-  invoiceId     String
-  method        String
-  amount        Decimal  @default("0")
-  createdAt     DateTime @default(now())
-
-  invoice POSInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
-
-  @@index([invoiceId])
-}
-
-// ════════════════════════════════════════════════════════════════════
-// PAYROLL SYSTEM
-// ════════════════════════════════════════════════════════════════════
-// Multi-branch payroll with auto Journal Entry integration.
-// Every financial operation (advance, payroll accrual, payment) posts an
-// immutable Journal Entry to the accounting engine — no manual bookkeeping.
-//
-// Workflow:
-//   Employee (branchId REQUIRED) ──┐
-//   SalaryAdvance ──────────────► JournalEntry (Dr Employee Advances / Cr Cash)
-//   PayrollRun (DRAFT→GENERATED→APPROVED→PAID)
-//     └─ PayrollItem (per-employee calc: base + allowances − deductions − advance settlements)
-//   PayrollRun APPROVED ───────► JournalEntry (Dr Salary Expense / Cr Salaries Payable)
-//   PayrollPayment ───────────► JournalEntry (Dr Salaries Payable / Cr Cash|Bank)
-//
-// Stability rules enforced at DB + API layer:
-//   1. Employee.branchId is NOT NULL (no employee without a branch)
-//   2. PayrollRun.branchId is NOT NULL (every batch tied to a branch)
-//   3. Approved/Paid runs CANNOT be edited or hard-deleted (soft void only)
-//   4. Every monetary operation creates a JournalEntry (financial audit trail)
-// ════════════════════════════════════════════════════════════════════
-
-// Employee Master
-model Employee {
-  id            String   @id @default(cuid())
-  code          String   @unique              // e.g. EMP-0001
-  name          String                         // Arabic name
-  nameEn        String?                        // English name
-  iqamaNumber   String?                        // ID / Iqama / Residence number
-  phone         String?
-  email         String?
-  position      String?                        // Job title (optional)
-  salaryType    String   @default("MONTHLY")  // MONTHLY | HOURLY
-  baseSalary    Decimal  @default("0")        // Monthly salary OR hourly rate
-  status        String   @default("ACTIVE")   // ACTIVE | INACTIVE
-  hireDate      DateTime @default(now())
-  // ── ERP-grade extension fields ──
-  bankAccount   String?                        // IBAN for bank transfers
-  bankName      String?
-  gosiNumber    String?                        // GOSI (social insurance) number
-  gosiRate      Decimal  @default("0")         // employer GOSI rate % (e.g. 12)
-  gosiEmployeeRate Decimal @default("0")       // employee GOSI rate % (e.g. 10)
-  contractType  String   @default("FULL_TIME") // FULL_TIME | PART_TIME | CONTRACT
-  // MANDATORY branch linkage — no employee can exist without a branch
-  branchId      String
-  notes         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  branch            Branch              @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  payrollItems      PayrollItem[]
-  salaryAdvances    SalaryAdvance[]
-  employeeAllowances EmployeeAllowance[]
-  leaves            Leave[]
-  attendances       Attendance[]
-  ledgerEntries     EmployeeLedgerEntry[]
-
-  @@index([branchId])
-  @@index([status])
-  @@index([branchId, status])
-  @@index([salaryType])
-}
-
-// Payroll Run / Batch (one per branch per month)
-model PayrollRun {
-  id            String   @id @default(cuid())
-  number        String   @unique              // e.g. PR-2025-01-0001
-  branchId      String                         // MANDATORY — every batch tied to a branch
-  month         Int                            // 1-12
-  year          Int                            // e.g. 2025
-  status        String   @default("DRAFT")    // DRAFT → GENERATED → APPROVED → PAID | VOIDED
-  // Totals (denormalized for fast report queries — recomputed on every change)
-  totalBase        Decimal @default("0")
-  totalAllowances  Decimal @default("0")
-  totalDeductions  Decimal @default("0")
-  totalAdvances    Decimal @default("0")      // advance settlements deducted this run
-  totalGross       Decimal @default("0")      // base + allowances
-  totalNet         Decimal @default("0")      // gross − deductions − advances
-  totalPaid        Decimal @default("0")      // sum of PayrollPayment.amount
-  employeeCount    Int     @default(0)
-  // Workflow timestamps + actors (audit trail)
-  generatedAt   DateTime?
-  generatedBy   String?
-  approvedAt    DateTime?
-  approvedBy    String?
-  paidAt        DateTime?
-  voidedAt      DateTime?
-  voidedBy      String?
-  voidReason    String?
-  // Accounting link — the JournalEntry created on approval (accrual)
-  accrualJournalEntryId String?
-  notes         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  branch      Branch          @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  items       PayrollItem[]
-  payments    PayrollPayment[]
-
-  @@index([branchId])
-  @@index([status])
-  @@index([year, month])
-  @@index([branchId, year, month])
-  @@index([branchId, status])
-}
-
-// Payroll Item — one row per employee in a run (the calculated line)
-model PayrollItem {
-  id            String   @id @default(cuid())
-  payrollRunId  String
-  employeeId    String
-  // Inputs (captured at generation time)
-  workDays      Decimal  @default("0")        // for MONTHLY: days worked (for proration)
-  workHours     Decimal  @default("0")        // for HOURLY: hours worked
-  baseAmount    Decimal  @default("0")        // computed base (monthly prorated OR hourly×rate)
-  allowances    Decimal  @default("0")        // bonuses, housing, transport, etc.
-  deductions    Decimal  @default("0")        // penalties, late, GOSI employee share, etc.
-  advanceAmount Decimal  @default("0")        // advance settlements applied this run
-  // ── Structured allowance breakdown (flexible Bonus/Allowance Engine) ──
-  housingAllowance    Decimal  @default("0")  // بدل سكن
-  transportAllowance  Decimal  @default("0")  // بدل نقل
-  communicationAllowance Decimal @default("0") // بدل اتصال
-  bonusAmount         Decimal  @default("0")  // مكافآت
-  commissionAmount    Decimal  @default("0")  // عمولات
-  otherAllowances     Decimal  @default("0")  // بدلات أخرى
-  // ── Structured deduction breakdown ──
-  gosiDeduction       Decimal  @default("0")  // GOSI employee share
-  absenceDeduction    Decimal  @default("0")  // غياب
-  lateDeduction       Decimal  @default("0")  // تأخير
-  otherDeductions     Decimal  @default("0")  // خصومات أخرى
-  // ── Leave/Attendance summary (computed from Leave + Attendance records) ──
-  annualLeaveDays     Decimal  @default("0")  // إجازة سنوية
-  sickLeaveDays       Decimal  @default("0")  // إجازة مرضية
-  absenceDays         Decimal  @default("0")  // غياب بدون إجازة
-  lateHours           Decimal  @default("0")  // ساعات التأخير
-  // Computed
-  grossAmount   Decimal  @default("0")        // base + allowances
-  netAmount     Decimal  @default("0")        // gross − deductions − advances
-  notes         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  payrollRun  PayrollRun  @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
-  employee    Employee   @relation(fields: [employeeId], references: [id], onDelete: Restrict)
-  itemAllowances PayrollItemAllowance[]
-
-  @@unique([payrollRunId, employeeId])
-  @@index([payrollRunId])
-  @@index([employeeId])
-}
-
-// ── Allowance Type — reusable templates defined per branch ──
-// e.g. Housing, Transport, Communication, Bonus, Commission, Overtime, etc.
-model AllowanceType {
-  id          String   @id @default(cuid())
-  code        String                         // unique within branch: HOUSING, TRANSPORT, etc.
-  name        String                         // Arabic name
-  nameEn      String?                        // English name
-  category    String   @default("ALLOWANCE") // ALLOWANCE | DEDUCTION
-  isPercentage Boolean @default(false)       // true = amount is % of base; false = fixed amount
-  defaultAmount Decimal @default("0")        // default amount or percentage
-  isRecurring Boolean  @default(true)        // applies every month automatically
-  isActive    Boolean  @default(true)
-  branchId    String                         // MANDATORY — each branch has its own allowance types
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  branch           Branch            @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  employeeAllowances EmployeeAllowance[]
-  itemAllowances   PayrollItemAllowance[]
-
-  @@unique([branchId, code])
-  @@index([branchId, category])
-  @@index([isActive])
-}
-
-// ── Employee Allowance — recurring allowance assigned to an employee ──
-// e.g. Ahmed gets 1000 SAR housing + 300 SAR transport every month
-model EmployeeAllowance {
-  id             String   @id @default(cuid())
-  employeeId     String
-  allowanceTypeId String
-  amount         Decimal  @default("0")      // overridden amount (if isPercentage, this is the %)
-  isActive       Boolean  @default(true)
-  effectiveFrom  DateTime @default(now())
-  effectiveTo    DateTime?                   // null = ongoing
-  notes          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  employee      Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  allowanceType AllowanceType @relation(fields: [allowanceTypeId], references: [id], onDelete: Restrict)
-
-  @@unique([employeeId, allowanceTypeId])
-  @@index([employeeId])
-  @@index([allowanceTypeId])
-}
-
-// ── Payroll Item Allowance — the actual allowance line applied in a payroll run ──
-// (snapshot of the allowance at the time the run was generated)
-model PayrollItemAllowance {
-  id             String   @id @default(cuid())
-  payrollItemId  String
-  allowanceTypeId String
-  amount         Decimal  @default("0")
-  isPercentage   Boolean  @default(false)
-  notes          String?
-
-  payrollItem   PayrollItem  @relation(fields: [payrollItemId], references: [id], onDelete: Cascade)
-  allowanceType AllowanceType @relation(fields: [allowanceTypeId], references: [id], onDelete: Restrict)
-
-  @@index([payrollItemId])
-  @@index([allowanceTypeId])
-}
-
-// ── Leave Record ──
-// Types: ANNUAL (سنوية), SICK (مرضية), UNPAID (بدون راتب), MATERNITY, HAJJ, EMERGENCY
-model Leave {
-  id          String   @id @default(cuid())
-  employeeId  String
-  type        String                         // ANNUAL | SICK | UNPAID | MATERNITY | HAJJ | EMERGENCY
-  startDate   DateTime
-  endDate     DateTime
-  days        Decimal  @default("0")         // total leave days (computed)
-  isPaid      Boolean  @default(true)        // paid leave reduces base proportionally; unpaid reduces net
-  reason      String?
-  status      String   @default("APPROVED")  // PENDING | APPROVED | REJECTED
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-  @@index([employeeId])
-  @@index([type])
-  @@index([status])
-  @@index([startDate, endDate])
-}
-
-// ── Attendance Record ──
-// Daily attendance: present, absent, late hours, overtime hours
-model Attendance {
-  id          String   @id @default(cuid())
-  employeeId  String
-  date        DateTime                       // the working day
-  status      String   @default("PRESENT")   // PRESENT | ABSENT | LATE | HALF_DAY | OFF
-  checkIn     DateTime?
-  checkOut    DateTime?
-  workHours   Decimal  @default("0")         // actual worked hours
-  lateHours   Decimal  @default("0")         // hours late
-  overtimeHours Decimal @default("0")
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-  @@unique([employeeId, date])
-  @@index([employeeId])
-  @@index([date])
-  @@index([status])
-}
-
-// ── Payroll Period Lock ──
-// After locking a period (branch + month + year), no payroll runs in that period
-// can be created, edited, approved, voided, or paid. Only ADMIN can lock/unlock.
-// Unlocking requires an explicit reason and is fully audited.
-model PayrollPeriodLock {
-  id          String   @id @default(cuid())
-  branchId    String                         // MANDATORY
-  month       Int                            // 1-12
-  year        Int
-  lockedAt    DateTime @default(now())
-  lockedBy    String
-  lockedByName String?
-  reason      String?                        // optional note when locking
-  // Unlock audit (a period can be unlocked and re-locked multiple times)
-  unlockedAt  DateTime?
-  unlockedBy  String?
-  unlockedByName String?
-  unlockReason String?
-  isActive    Boolean  @default(true)        // false if period was unlocked
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  branch Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
-
-  @@unique([branchId, month, year])
-  @@index([branchId])
-  @@index([year, month])
-  @@index([isActive])
-}
-
-// ── Employee Ledger Entry ──
-// Consolidated financial history per employee: every debit (advance payout) and
-// credit (salary payment, advance settlement) flows here. This is the single
-// source of truth for an employee's running balance with the company.
-model EmployeeLedgerEntry {
-  id          String   @id @default(cuid())
-  employeeId  String
-  branchId    String                         // denormalized for fast branch queries
-  date        DateTime @default(now())
-  type        String                         // ADVANCE | SALARY | ADVANCE_SETTLEMENT | MANUAL_DEBIT | MANUAL_CREDIT
-  description String
-  debit       Decimal  @default("0")         // amount the company gives to the employee (advances, manual debits)
-  credit      Decimal  @default("0")         // amount the employee receives/returns (salary net, settlements)
-  balance     Decimal  @default("0")         // running balance after this entry (debit − credit cumulative)
-  referenceType String?                      // 'SalaryAdvance' | 'PayrollItem' | 'PayrollPayment' | 'Manual'
-  referenceId String?
-  journalEntryId String?                     // link to the JournalEntry if applicable
-  createdAt   DateTime @default(now())
-
-  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
-
-  @@index([employeeId, date])
-  @@index([branchId, date])
-  @@index([type])
-  @@index([referenceType, referenceId])
-}
-
-// ── Payroll Settings — per-branch payroll configuration ──
-// Holds GOSI rates, working days per month, overtime rate multiplier, and
-// the chart-of-accounts mapping for payroll operations (allows each branch
-// to post to different accounts if needed).
-model PayrollSetting {
-  id                    String   @id @default(cuid())
-  branchId              String   @unique               // one settings row per branch
-  workingDaysPerMonth   Int      @default(30)          // standard working days (for proration)
-  standardWorkHoursPerDay Decimal @default("8")        // standard daily hours
-  overtimeRateMultiplier Decimal @default("1.5")       // overtime = hourlyRate × this
-  lateDeductionPerHour  Decimal  @default("0")         // 0 = use hourly rate; otherwise fixed SAR/hour
-  absenceDeductionPerDay Decimal @default("0")         // 0 = use daily rate; otherwise fixed SAR/day
-  gosiEnabled           Boolean  @default(false)       // apply GOSI deduction automatically
-  gosiEmployerRate      Decimal  @default("12")        // % employer contribution
-  gosiEmployeeRate      Decimal  @default("10")        // % employee contribution
-  gosiSalaryCap         Decimal  @default("45000")     // GOSI max salary subject to contribution
-  // ── Account mapping overrides (null = use defaults from payroll-engine) ──
-  salaryExpenseAccountId  String?
-  salariesPayableAccountId String?
-  employeeAdvancesAccountId String?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-
-  branch Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
-
-  @@index([branchId])
-}
-
-// Salary Advance / Loan (independent of payroll runs)
-model SalaryAdvance {
-  id            String   @id @default(cuid())
-  number        String   @unique              // e.g. ADV-0001
-  employeeId    String
-  branchId      String                         // MANDATORY — mirrors employee's branch for fast branch queries
-  amount        Decimal  @default("0")
-  date          DateTime @default(now())
-  reason        String?
-  // Settlement tracking
-  status        String   @default("PENDING")  // PENDING (outstanding) | SETTLED (fully deducted)
-  settledAmount Decimal  @default("0")        // running total of what's been deducted
-  // Accounting link — the JournalEntry created when the advance was paid out
-  journalEntryId String?
-  notes         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
-  branch   Branch   @relation(fields: [branchId], references: [id], onDelete: Restrict)
-
-  @@index([employeeId])
-  @@index([branchId])
-  @@index([status])
-  @@index([date])
-  @@index([employeeId, status])
-  @@index([branchId, status, date])
-}
-
-// Payroll Payment — record of actual cash/bank disbursement for a run
-model PayrollPayment {
-  id            String   @id @default(cuid())
-  payrollRunId  String
-  amount        Decimal  @default("0")
-  paymentMethod String   @default("CASH")     // CASH | BANK_TRANSFER | CHEQUE
-  date          DateTime @default(now())
-  reference     String?                         // bank transfer ref / cheque no
-  // Accounting link — the JournalEntry created on payment (Dr Salaries Payable / Cr Cash|Bank)
-  journalEntryId String?
-  notes         String?
-  createdAt     DateTime @default(now())
-
-  payrollRun PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Restrict)
-
-  @@index([payrollRunId])
-  @@index([date])
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// VAT Declaration — persisted quarterly VAT declaration with a
-// state machine: DRAFT → SUBMITTED → LOCKED (with VOIDED terminal).
-//
-// Phase 10 critical gap (AUDIT-10-VAT-MACHINE):
-// Previously the VAT system recomputed totals from Transaction records
-// on every API call (stateless). This model persists a snapshot of the
-// declaration at creation time so the workflow (submit/lock/reopen)
-// has a stable entity to operate on.
-//
-// State transitions:
-//   POST   /api/vat/declarations                  → creates DRAFT
-//   POST   /api/vat/declarations/[id]/submit      → DRAFT → SUBMITTED
-//   POST   /api/vat/declarations/[id]/lock        → SUBMITTED → LOCKED
-//   POST   /api/vat/declarations/[id]/reopen      → LOCKED|SUBMITTED → DRAFT|SUBMITTED (ADMIN, reason mandatory)
-//   POST   /api/vat/declarations/[id]/regenerate  → recompute totals (DRAFT only)
-//   DELETE /api/vat/declarations/[id]             → DRAFT → VOIDED (soft delete, ADMIN only)
-// ═══════════════════════════════════════════════════════════════════
-model VatDeclaration {
-  id              String   @id @default(uuid())
-  number          String   @unique          // e.g. VAT-2026-Q1-0001
-  branchId        String
-  branch          Branch   @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  year            Int
-  quarter         Int      // 1-4
-  status          String   @default("DRAFT") // DRAFT | SUBMITTED | LOCKED | VOIDED
-
-  // Totals (snapshot at creation — recomputed only via /regenerate while DRAFT)
-  // Decimal fields use Prisma's default `Decimal` type, which maps to
-  // PostgreSQL `DECIMAL(38,6)` — sufficient precision for VAT base/tax values.
-  totalSalesBase            Decimal @default("0")
-  totalSalesReturnsBase     Decimal @default("0")
-  netSalesBase              Decimal @default("0")
-  totalPurchaseBase         Decimal @default("0")
-  totalPurchaseReturnsBase  Decimal @default("0")
-  netPurchaseBase           Decimal @default("0")
-  totalOutputTax            Decimal @default("0")
-  totalInputTax             Decimal @default("0")
-  netVAT                    Decimal @default("0")
-
-  // Workflow audit trail
-  createdById     String?
-  createdByName   String?
-  createdAt       DateTime @default(now())
-  submittedAt     DateTime?
-  submittedById   String?
-  submittedByName String?
-  lockedAt        DateTime?
-  lockedById      String?
-  lockedByName    String?
-  reopenedAt      DateTime?
-  reopenedById    String?
-  reopenedByName  String?
-  reopenReason    String?
-
-  notes           String?
-
-  @@unique([branchId, year, quarter, status]) // prevent duplicate active declarations
-  @@index([branchId, year, quarter])
-  @@index([status])
+  id        String @id @default(cuid())
+  name      String
+  sku       String? @unique
+  price     Decimal @default(0)
+  stock     Decimal @default(0)
+  branchId  String
+
+  branch Branch @relation(fields: [branchId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
