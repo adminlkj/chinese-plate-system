@@ -62,16 +62,18 @@
 }
 
 /* =========================
-   BASE FIX (IMPORTANT)
+   BASE FIX
 ========================= */
 @layer base {
   * {
-    border-color: hsl(var(--border));
+    border-color: var(--border);
   }
 
+  html,
   body {
-    background: hsl(var(--background));
-    color: hsl(var(--foreground));
+    background: var(--background);
+    color: var(--foreground);
+    min-height: 100%;
   }
 }
 
@@ -79,7 +81,7 @@
    FOCUS FIX
 ========================= */
 :focus-visible {
-  outline: 2px solid hsl(var(--ring));
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
@@ -89,6 +91,7 @@
 ::-webkit-scrollbar {
   width: 6px;
 }
+
 ::-webkit-scrollbar-thumb {
   background: oklch(0.7 0 0);
   border-radius: 3px;
