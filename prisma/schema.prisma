@@ -19,11 +19,11 @@ datasource db {
   // Deployment uses `prisma db push` (NOT migrations) — see render.yaml
   // startCommand. The DATABASE_URL is injected by Render from the
   // `chinese-plate-db` PostgreSQL resource.
-  // ─────────────────────────────────────────────────────────────────────────
-  provider = "sqlite"
+  // ─────────────────────────────────────────────────────────────────────
+datasource db {
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
 // Branch Master Table
 // Each branch holds its OWN independent settings (logo, contact, financial, receipt)
 // so that POS, printing, and accounting can be fully customized per branch.
