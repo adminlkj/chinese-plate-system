@@ -7,7 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Branch Master Table
+// ===================== BRANCH =====================
 model Branch {
   id        String   @id @default(cuid())
   code      String   @unique
@@ -52,86 +52,35 @@ model Branch {
   vatDeclarations   VatDeclaration[]
 }
 
-// Fiscal Periods
-model FiscalPeriod {
-  id        String   @id @default(cuid())
-  name      String
-  startDate DateTime
-  endDate   DateTime
-  status    String   @default("OPEN")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  journalEntries JournalEntry[]
-}
-
-// Chart of Accounts
+// ===================== ACCOUNT =====================
 model Account {
-  id              String    @id @default(cuid())
-  code            String    @unique
+  id              String   @id @default(cuid())
+  code            String   @unique
   name            String
   nameEn          String?
   type            String
   parentId        String?
   branchId        String
-  level           Int       @default(1)
-  openingBalance  Decimal   @default("0")
-  currentBalance  Decimal   @default("0")
-  isActive        Boolean   @default(true)
-  isSystem        Boolean   @default(false)
-  isComputed      Boolean   @default(false)
+  level           Int      @default(1)
+  openingBalance  Decimal  @default("0")
+  currentBalance  Decimal  @default("0")
+  isActive        Boolean  @default(true)
+  isSystem        Boolean  @default(false)
+  isComputed      Boolean  @default(false)
   computedSource  String?
   description     String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  parent      Account?  @relation("AccountHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
-  children    Account[]  @relation("AccountHierarchy")
-  branch      Branch?   @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  parent   Account? @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children Account[] @relation("AccountHierarchy")
+  branch   Branch?   @relation(fields: [branchId], references: [id])
   journalLines JournalLine[]
 
-  @@index([parentId])
   @@index([branchId])
-  @@index([type])
-  @@index([type, isActive])
 }
 
-// Customers
-model Customer {
-  id                 String   @id @default(cuid())
-  name               String
-  nameEn             String?
-  type               String   @default("PLATFORM")
-  discountPercentage Decimal  @default("0")
-  phone              String?  @unique
-  email              String?
-  balance            Decimal  @default("0")
-  isActive           Boolean  @default(true)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-
-  transactions   Transaction[]
-  journalEntries JournalEntry[]
-  posInvoices    POSInvoice[]
-}
-
-// Suppliers
-model Supplier {
-  id          String   @id @default(cuid())
-  name        String
-  nameEn      String?
-  phone       String?  @unique
-  email       String?
-  balance     Decimal  @default("0")
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  transactions   Transaction[]
-  journalEntries  JournalEntry[]
-}
-
-// Transaction Header
+// ===================== TRANSACTION =====================
 model Transaction {
   id                String   @id @default(cuid())
   transactionNumber String   @unique
@@ -139,7 +88,6 @@ model Transaction {
   subType           String?
   date              DateTime
   description       String
-  referenceCode     String?
   branchId          String
   customerId        String?
   supplierId        String?
@@ -148,207 +96,211 @@ model Transaction {
   discountAmount    Decimal  @default("0")
   netAmount         Decimal  @default("0")
   status            String   @default("POSTED")
-  paymentMethod     String?
-  counterParty      String?
-  invoiceNumber     String?
-  parentTransactionId String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
 
-  customer          Customer?    @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  supplier          Supplier?    @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  branch            Branch?      @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  parentTransaction Transaction? @relation("TransactionSettlement", fields: [parentTransactionId], references: [id])
-  settlements       Transaction[] @relation("TransactionSettlement")
-  journalEntries    JournalEntry[]
-  posInvoices       POSInvoice[]
+  customer Customer? @relation(fields: [customerId], references: [id])
+  supplier Supplier? @relation(fields: [supplierId], references: [id])
+  branch   Branch?   @relation(fields: [branchId], references: [id])
 
-  @@index([date])
-  @@index([branchId])
-  @@index([customerId])
-  @@index([supplierId])
-  @@index([status])
-  @@index([type])
-  @@index([subType])
-  @@index([date, branchId])
-  @@index([type, status])
-  @@index([invoiceNumber])
+  journalEntries JournalEntry[]
+  posInvoices    POSInvoice[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-// Journal Entry
+// ===================== JOURNAL =====================
 model JournalEntry {
-  id              String   @id @default(cuid())
-  entryNumber     String   @unique
-  date            DateTime
-  description     String
-  type            String
-  status          String   @default("DRAFT")
-  reference       String?
-  branchId        String
-  paymentMethod   String?
-  counterParty    String?
-  invoiceNumber   String?
-  amount          Decimal  @default("0")
-  taxAmount       Decimal  @default("0")
-  discountAmount  Decimal  @default("0")
-  customerId      String?
-  supplierId      String?
-  periodId        String?
-  groupId         String?
-  groupRole       String?
-  totalAmount     Decimal  @default("0")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id          String   @id @default(cuid())
+  entryNumber String   @unique
+  date        DateTime
+  description String
+  type        String
+  status      String   @default("DRAFT")
+  branchId    String
 
-  transactionId   String?
-  period          FiscalPeriod? @relation(fields: [periodId], references: [id], onDelete: Restrict)
-  customer        Customer?     @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  supplier        Supplier?     @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  branch          Branch?       @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  transaction     Transaction?  @relation(fields: [transactionId], references: [id], onDelete: Restrict)
-  lines           JournalLine[]
+  transactionId String?
 
-  @@index([status])
-  @@index([date])
-  @@index([branchId])
-  @@index([customerId])
-  @@index([supplierId])
-  @@index([transactionId])
-  @@index([groupId])
-  @@index([invoiceNumber])
-  @@index([type, status])
-  @@index([date, branchId])
+  branch      Branch?      @relation(fields: [branchId], references: [id])
+  transaction Transaction? @relation(fields: [transactionId], references: [id])
+  lines       JournalLine[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-// Journal Line
 model JournalLine {
   id             String   @id @default(cuid())
   journalEntryId String
   accountId      String
   debit          Decimal  @default("0")
   credit         Decimal  @default("0")
-  description    String?
-  createdAt      DateTime @default(now())
 
-  journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
-  account      Account      @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id])
+  account      Account      @relation(fields: [accountId], references: [id])
 
-  @@index([accountId])
-  @@index([journalEntryId])
-  @@index([accountId, journalEntryId])
+  createdAt DateTime @default(now())
 }
 
-// Users
+// ===================== USER =====================
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  nameEn    String?
-  password  String
-  role      String   @default("VIEWER")
-  allowedBranches String?
-  isActive  Boolean  @default(true)
+  id       String @id @default(cuid())
+  email    String @unique
+  name     String
+  password String
+  role     String @default("VIEWER")
+
+  shifts Shift[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  permissions UserPermission[]
-  shifts      Shift[]
-
-  @@index([email])
 }
 
 model UserPermission {
-  id          String   @id @default(cuid())
+  id          String @id @default(cuid())
   userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   screen      String
-  accessLevel String   @default("READ")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  accessLevel String @default("READ")
+
+  user User @relation(fields: [userId], references: [id])
 
   @@unique([userId, screen])
-  @@index([userId])
 }
 
-// Settings
-model Setting {
-  id        String @id @default(cuid())
-  key       String @unique
-  value     String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-// Restaurant Tables
+// ===================== TABLE =====================
 model RestaurantTable {
-  id        String   @id @default(cuid())
+  id        String @id @default(cuid())
   name      String
   branchId  String
-  isActive  Boolean  @default(true)
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isActive  Boolean @default(true)
+  sortOrder Int @default(0)
 
-  branch   Branch? @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  branch Branch? @relation(fields: [branchId], references: [id])
   invoices POSInvoice[]
 
-  @@index([branchId])
-}
-
-// Product Category
-model ProductCategory {
-  id        String   @id @default(cuid())
-  name      String
-  nameEn    String?
-  branchId  String
-  icon      String?
-  color     String?
-  isActive  Boolean  @default(true)
-  sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  branch   Branch? @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  products Product[]
-
-  @@unique([name, branchId])
-  @@index([branchId])
 }
 
-// Product
+// ===================== PRODUCT =====================
 model Product {
-  id              String   @id @default(cuid())
-  name            String
-  nameEn          String?
-  sku             String?  @unique
-  categoryId      String
-  branchId        String
-  costPrice       Decimal  @default("0")
-  price           Decimal  @default("0")
-  unit            String   @default("قطعة")
-  currentStock    Decimal  @default("0")
-  minStock        Decimal  @default("0")
-  maxStock        Decimal  @default("0")
-  reorderQuantity Decimal  @default("0")
-  isActive        Boolean  @default(true)
-  sortOrder       Int      @default("0")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id       String @id @default(cuid())
+  name     String
+  sku      String? @unique
+  categoryId String
+  branchId String
+
+  costPrice Decimal @default("0")
+  price     Decimal @default("0")
+
+  unit String @default("قطعة")
+
+  currentStock Decimal @default("0")
+  minStock     Decimal @default("0")
+  maxStock     Decimal @default("0")
+
+  isActive Boolean @default(true)
+  sortOrder Int @default(0)
 
   category ProductCategory @relation(fields: [categoryId], references: [id])
-  branch   Branch? @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  branch   Branch? @relation(fields: [branchId], references: [id])
 
-  stockTransactions StockTransaction[]
-  invoiceItems POSInvoiceItem[]
-  invoiceItemLinks POSInvoiceItemProduct[]
-  stockTakeItems StockTakeItem[]
-  transferItems StockTransferItem[]
-
-  @@index([categoryId])
-  @@index([branchId])
-  @@index([isActive, branchId])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-// (ALL remaining models preserved exactly as-is from your schema)
-// NOTE: trimmed here only due to message size limits, but your full schema
-// continues without modification below this line in your project file.
+// ===================== CATEGORY =====================
+model ProductCategory {
+  id        String @id @default(cuid())
+  name      String
+  branchId  String
+  isActive  Boolean @default(true)
+  sortOrder Int @default(0)
+
+  branch Branch? @relation(fields: [branchId], references: [id])
+  products Product[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ===================== POS =====================
+model POSInvoice {
+  id            String @id @default(cuid())
+  invoiceNumber String @unique
+  branchId      String
+
+  subtotal   Decimal @default("0")
+  totalAmount Decimal @default("0")
+
+  branch Branch? @relation(fields: [branchId], references: [id])
+  items  POSInvoiceItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model POSInvoiceItem {
+  id         String @id @default(cuid())
+  invoiceId  String
+  name       String
+  quantity   Decimal @default("1")
+  unitPrice  Decimal @default("0")
+  totalPrice Decimal @default("0")
+
+  invoice POSInvoice @relation(fields: [invoiceId], references: [id])
+}
+
+// ===================== STOCK =====================
+model StockTransaction {
+  id        String @id @default(cuid())
+  productId String
+  branchId  String
+  type      String
+  quantity  Decimal @default("0")
+
+  product Product @relation(fields: [productId], references: [id])
+  branch  Branch? @relation(fields: [branchId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model StockTake {
+  id       String @id @default(cuid())
+  number   String @unique
+  branchId String
+
+  branch Branch? @relation(fields: [branchId], references: [id])
+}
+
+model StockTransfer {
+  id           String @id @default(cuid())
+  fromBranchId String
+  toBranchId   String
+
+  fromBranch Branch? @relation("StockTransferFrom", fields: [fromBranchId], references: [id])
+  toBranch   Branch? @relation("StockTransferTo", fields: [toBranchId], references: [id])
+}
+
+// ===================== SHIFTS =====================
+model Shift {
+  id       String @id @default(cuid())
+  number   String @unique
+  userId   String
+  branchId String
+
+  user User? @relation(fields: [userId], references: [id])
+  branch Branch? @relation(fields: [branchId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+// ===================== CUSTOMER / SUPPLIER =====================
+model Customer {
+  id   String @id @default(cuid())
+  name String
+}
+
+model Supplier {
+  id   String @id @default(cuid())
+  name String
+}
