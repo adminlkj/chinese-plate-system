@@ -1,0 +1,90 @@
+# Dependencies and build artifacts
+node_modules/
+.next/
+tsconfig.tsbuildinfo
+
+# Database files (sandbox-only) — exclude ALL SQLite DBs anywhere
+db/
+prisma/db/
+prisma/*.db
+prisma/*.db-journal
+*.db
+*.db-journal
+
+# Development directories
+agent-ctx/
+upload/
+examples/
+mini-services/
+.git/
+.zscripts/
+skills/
+tool-results/
+verify-screenshots/
+src-tauri/
+electron/
+dist/
+
+# Desktop/test remnant scripts (keep switch-to-postgres.js + postinstall.js + migrate-*.js for Render)
+scripts/build-desktop.js
+scripts/build-tauri.js
+scripts/build-windows-package.js
+scripts/electron-build.sh
+scripts/copy-standalone.js
+scripts/start-server.js
+scripts/audit.js
+scripts/comprehensive-test.ts
+scripts/stress-test.ts
+scripts/seed-pos.ts
+
+# Logs
+*.log
+dev.log
+worklog.md
+worklog-update.md
+
+# Lock files
+bun.lock
+package-lock.json
+
+# Screenshots and images (not part of source)
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+
+# Audit/test reports (not part of source)
+ACCOUNTING-AUDIT.md
+AUDIT-FINAL-REPORT.md
+AUDIT-SYSTEM-MAP.md
+AUTH-AUDIT.md
+BACKUP-AUDIT.md
+BUILD-REPORT.md
+COMPREHENSIVE-AUDIT-REPORT.md
+DATABASE-AUDIT.md
+ERP-AUDIT-REPORT.md
+FINAL-PRODUCTION-READINESS.md
+FINAL-SOURCE-RELEASE.md
+INVENTORY-AUDIT.md
+PERFORMANCE-AUDIT.md
+POS-AUDIT.md
+PRODUCTION-READINESS-REPORT.md
+PRODUCTION-READINESS.md
+QA-REPORT.md
+RELEASE-NOTES.md
+SECURITY-AUDIT.md
+WINDOWS-DEPLOYMENT-AUDIT.md
+
+# Test files (not part of source)
+api-routes.js
+inventory_test.js
+test-suite.js
+main.js
+nul
+3000
+
+# Dev scripts (not needed for Render deployment)
+keep-alive.sh
+run-server.sh
+start-dev.sh
