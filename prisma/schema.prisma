@@ -20,10 +20,15 @@ datasource db {
   // startCommand. The DATABASE_URL is injected by Render from the
   // `chinese-plate-db` PostgreSQL resource.
   // ─────────────────────────────────────────────────────────────────────
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
 // Branch Master Table
 // Each branch holds its OWN independent settings (logo, contact, financial, receipt)
 // so that POS, printing, and accounting can be fully customized per branch.
@@ -32,27 +37,22 @@ model Branch {
   code      String   @unique
   name      String
   nameEn    String?
-  // Contact info (per-branch)
   address   String?
   addressEn String?
   phone     String?
   email     String?
   manager   String?
-  // Financial (per-branch — null = fall back to system-wide defaults)
-  vatNumber             String?
-  taxRate               Decimal?
+  vatNumber String?
+  taxRate   Decimal?
   maxDiscountPercentage Decimal?
-  // Branch logo stored directly on the branch record (base64 data URL)
-  logo                String?
-  // Custom receipt text (per-branch)
-  receiptHeader       String?
-  receiptFooter       String?
+  logo      String?
+  receiptHeader String?
+  receiptFooter String?
   isActive  Boolean  @default(true)
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Back-relations: all entities that reference this branch via branchId
   accounts          Account[]
   transactions      Transaction[]
   journalEntries    JournalEntry[]
@@ -66,7 +66,7 @@ model Branch {
   shifts            Shift[]
   posInvoices       POSInvoice[]
   auditLogs         AuditLog[]
-  // Payroll relations (per-branch independent payroll)
+
   employees         Employee[]
   payrollRuns       PayrollRun[]
   salaryAdvances    SalaryAdvance[]
