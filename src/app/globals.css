@@ -86,10 +86,11 @@
     box-sizing: border-box;
   }
 
-  body {
-    @apply bg-background text-foreground;
-    scrollbar-gutter: stable;
-  }
+ body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  scrollbar-gutter: stable;
+}
 
   /* Focus styles */
   *:focus-visible {
